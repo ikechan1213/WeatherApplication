@@ -151,13 +151,13 @@ result_frame.pack(pady=20)
 city_label = tk.Label(result_frame, text="都市名: ---", font=("Arial", 16), bg=MAIN_COLOR)
 city_label.pack(pady=5)
 
-weather_label = tk.Label(result_frame, text="天気: ---", font=("Arial", 14))
+weather_label = tk.Label(result_frame, text="天気: ---", font=("Arial", 14), bg=MAIN_COLOR)
 weather_label.pack(pady=5)
 
-temp_label = tk.Label(result_frame, text="気温: --- °C", font=("Arial", 14))
+temp_label = tk.Label(result_frame, text="気温: --- °C", font=("Arial", 14), bg=MAIN_COLOR)
 temp_label.pack(pady=5)
 
-feels_like_label = tk.Label(result_frame, text="体感気温: --- °C", font=("Arial", 14))
+feels_like_label = tk.Label(result_frame, text="体感気温: --- °C", font=("Arial", 14), bg=MAIN_COLOR)
 feels_like_label.pack(pady=5)
 
 # 天気アイコン表示用ラベル
@@ -174,7 +174,7 @@ forecast_title_label.pack(pady=5)
 # 5日分のラベルを保持するリスト(リストを作ることでこの後のgetweatherで1つめのラベルは1日目という用に分かりやすくしている)
 forecast_labels = []
 for _ in range(5):
-    label = tk.Label(forecast_frame, text="---", font=("Arial", 12))
+    label = tk.Label(forecast_frame, text="---", font=("Arial", 12), bg=MAIN_COLOR)
     label.pack()
     forecast_labels.append(label)
 
