@@ -91,18 +91,19 @@ def get_weather():
         temp_label.config(text=f"気温: {temp:.1f} °C")
         feels_like_label.config(text=f"体感気温: {feels_like:.1f} °C")
 
-        # --- 天気アイコンを表示 ---
+        # # --- 天気アイコンを表示 ---
+
         icon_url = f"http://openweathermap.org/img/wn/{icon_id}@2x.png"
         icon_response = requests.get(icon_url)
 
         # PILを使って画像を開く
         img_data = Image.open(BytesIO(icon_response.content))
 
-        # Tkinterで使える画像形式に変換
-        # ★★ 注意: global img_tk を使わないと画像が表示されない ★★
+        # Tkinterで使える画像形式に変換 (global img_tk を忘れずに)
         global img_tk
         img_tk = ImageTk.PhotoImage(img_data)
 
+        # icon_label に画像をセット
         icon_label.config(image=img_tk)
 
     except requests.exceptions.HTTPError as err:
