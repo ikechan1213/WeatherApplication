@@ -99,9 +99,13 @@ def get_weather():
         # PILを使って画像を開く
         img_data = Image.open(BytesIO(icon_response.content))
 
+        # ★★★ ここにリサイズ処理を追加 ★★★
+        # 例として、画像を幅 120px, 高さ 120px に拡大します
+        resized_image = img_data.resize((120, 120))
+
         # Tkinterで使える画像形式に変換 (global img_tk を忘れずに)
         global img_tk
-        img_tk = ImageTk.PhotoImage(img_data)
+        img_tk = ImageTk.PhotoImage(resized_image)
 
         # icon_label に画像をセット
         icon_label.config(image=img_tk)
@@ -117,16 +121,20 @@ def get_weather():
 
 # --- GUIエリア ---
 
+# 使用する背景色を定義 (例: Light Cyan)
+MAIN_COLOR = '#E0FFFF'
+
 # メインウィンドウの作成
 root = tk.Tk()
 root.title("天気予報アプリ")
 root.geometry("400x570")
+root.config(bg=MAIN_COLOR)
 
 # 都市名入力フレーム
-input_frame = tk.Frame(root)
+input_frame = tk.Frame(root, bg=MAIN_COLOR)
 input_frame.pack(pady=10)
 
-city_label_info = tk.Label(input_frame, text="都市名 (英語):")
+city_label_info = tk.Label(input_frame, text="都市名 (英語):", bg=MAIN_COLOR)
 city_label_info.pack(side=tk.LEFT, padx=5)
 
 city_entry = tk.Entry(input_frame, width=20)
@@ -136,11 +144,11 @@ search_button = tk.Button(input_frame, text="天気取得", command=get_weather)
 search_button.pack(side=tk.LEFT, padx=5)
 
 # 結果表示フレーム
-result_frame = tk.Frame(root)
+result_frame = tk.Frame(root, bg=MAIN_COLOR)
 result_frame.pack(pady=20)
 
 # 各情報を表示するラベル
-city_label = tk.Label(result_frame, text="都市名: ---", font=("Arial", 16))
+city_label = tk.Label(result_frame, text="都市名: ---", font=("Arial", 16), bg=MAIN_COLOR)
 city_label.pack(pady=5)
 
 weather_label = tk.Label(result_frame, text="天気: ---", font=("Arial", 14))
@@ -153,14 +161,14 @@ feels_like_label = tk.Label(result_frame, text="体感気温: --- °C", font=("A
 feels_like_label.pack(pady=5)
 
 # 天気アイコン表示用ラベル
-icon_label = tk.Label(result_frame)
+icon_label = tk.Label(result_frame, bg=MAIN_COLOR)
 icon_label.pack(pady=10)
 
 # --- 5日間予報の表示フレーム  ---
-forecast_frame = tk.Frame(root)
+forecast_frame = tk.Frame(root, bg=MAIN_COLOR)
 forecast_frame.pack(pady=10)
 
-forecast_title_label = tk.Label(forecast_frame, text="5日間の予報", font=("Arial", 14, "bold"))
+forecast_title_label = tk.Label(forecast_frame, text="5日間の予報", font=("Arial", 14, "bold"), bg=MAIN_COLOR)
 forecast_title_label.pack(pady=5)
 
 # 5日分のラベルを保持するリスト(リストを作ることでこの後のgetweatherで1つめのラベルは1日目という用に分かりやすくしている)
