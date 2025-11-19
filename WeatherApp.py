@@ -36,10 +36,10 @@ def get_weather():
         forecast_response.raise_for_status()
         forecast_data = forecast_response.json()
 
-        # 3時間ごとのデータ(40件)から、お昼(12:00)のデータだけを抽出
+        # 3時間ごとのデータ(40件)から、お昼(12:00)のデータ(UTCとJSTでは9時間の時差があるので12-9で日本時間の昼の12時を参照している)だけを抽出
         daily_forecasts = []
         for item in forecast_data["list"]:
-            if "12:00:00" in item["dt_txt"]:
+            if "03:00:00" in item["dt_txt"]:
                 daily_forecasts.append(item)
 
         # 抽出したデータを5日分、GUIラベルに反映
@@ -119,7 +119,7 @@ def get_weather():
 # メインウィンドウの作成
 root = tk.Tk()
 root.title("天気予報アプリ")
-root.geometry("400x500")
+root.geometry("400x570")
 
 # 都市名入力フレーム
 input_frame = tk.Frame(root)
