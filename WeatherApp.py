@@ -3,12 +3,13 @@ from tkinter import messagebox
 import requests
 from PIL import Image, ImageTk
 from io import BytesIO
+from datetime import datetime
 
 
 # --- 関数エリア ---
 
 def get_weather():
-    # ★★★★★ あなたのAPIキーをここに貼り付けてください ★★★★★
+    # ★★★★★ 個別のAPIキー ★★★★★
     API_KEY = "5466d0fcf87088ea5156d2d890018262"
 
     # 入力欄から都市名を取得
@@ -114,6 +115,20 @@ feels_like_label.pack(pady=5)
 # 天気アイコン表示用ラベル
 icon_label = tk.Label(result_frame)
 icon_label.pack(pady=10)
+
+# --- 5日間予報の表示フレーム  ---
+forecast_frame = tk.Frame(root)
+forecast_frame.pack(pady=10)
+
+forecast_title_label = tk.Label(forecast_frame, text="5日間の予報", font=("Arial", 14, "bold"))
+forecast_title_label.pack(pady=5)
+
+# 5日分のラベルを保持するリスト(リストを作ることでこの後のgetweatherで1つめのラベルは1日目という用に分かりやすくしている)
+forecast_labels = []
+for _ in range(5):
+    label = tk.Label(forecast_frame, text="---", font=("Arial", 12))
+    label.pack()
+    forecast_labels.append(label)
 
 # メインループの開始
 root.mainloop()
