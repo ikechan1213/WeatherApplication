@@ -18,10 +18,49 @@ def get_weather():
         messagebox.showwarning("警告", "都市名を入力してください")
         return
 
+        # --- (ここから追加) 予報ラベルをリセット ---
+    for label in forecast_labels:
+            label.config(text="---")
+
     # APIリクエストURL (現在の天気を取得)
     url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric&lang=ja"
 
     try:
+
+        # --- (ここから5日間予報の処理) ---
+
+        # 5日間予報のAPIリクエストURL
+        forecast_url = f"http://api.openweathermap.org/data/2.5/forecast?q={city}&appid={API_KEY}&units=metric&lang=ja"
+
+        forecast_response = requests.get(forecast_url)
+        forecast_response.raise_for_status()
+        forecast_data = forecast_response.json()
+
+        # 3時間ごとのデータ(40件)から、お昼(12:00)のデータだけを抽出
+        daily_forecasts = []
+        for item in forecast_data["list"]:
+            if "12:00:00" in item["dt_txt"]:
+                daily_forecasts.append(item)
+
+        # 抽出したデータを5日分、GUIラベルに反映
+        for i in range(len(daily_forecasts[:5])):  # 5日分に制限
+            day_data = daily_forecasts[i]
+
+            # 日付のフォーマットを "YYYY-MM-DD HH:MM:SS" から "MM/DD (曜)" に変更
+            dt_obj = datetime.strptime(day_data["dt_txt"], "%Y-%m-%d %H:%M:%S")
+            # %a は 曜日 (例: 'Sat')。ロケール(実行環境)によっては日本語になります。
+            date_str = dt_obj.strftime("%m/%d (%a)")
+
+            # 天気
+            desc = day_data["weather"][0]["description"]
+
+            # 気温
+            temp = day_data["main"]["temp"]
+
+            # ラベルに設定
+            forecast_labels[i].config(text=f"{date_str}: {desc} / {temp:.1f} °C")
+        # ここまでが5日間予報処理
+
         # APIにリクエストを送信
         response = requests.get(url)
         response.raise_for_status()  # エラーがあれば例外を発生
