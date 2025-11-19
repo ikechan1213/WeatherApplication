@@ -137,7 +137,7 @@ input_frame.pack(pady=10)
 city_label_info = tk.Label(input_frame, text="都市名 (英語):", bg=MAIN_COLOR)
 city_label_info.pack(side=tk.LEFT, padx=5)
 
-city_entry = tk.Entry(input_frame, width=20, bg=MAIN_COLOR)
+city_entry = tk.Entry(input_frame, width=20)
 city_entry.pack(side=tk.LEFT, padx=5)
 
 search_button = tk.Button(input_frame, text="天気取得", command=get_weather)
