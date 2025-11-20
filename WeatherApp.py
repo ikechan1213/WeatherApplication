@@ -7,10 +7,7 @@ from datetime import datetime
 
 # --- グローバル変数 (アイコン画像を保持するため、関数外で定義) ---
 
-# メインアイコン用 (既存)
-img_tk = None
-
-# 予報アイコン用 (参照を保持しないと画像が消えるため)
+# 予報アイコン用 (メインアイコンの参照もここに格納して安定させます)
 forecast_img_tk_list = []
 
 
@@ -21,11 +18,15 @@ def get_weather():
     API_KEY = "5466d0fcf87088ea5156d2d890018262"
 
     # グローバル変数へのアクセス宣言
-    global img_tk # 現在のアイコン
-    global forecast_img_tk_list #　5日間予報のアイコン
+    global forecast_img_tk_list
+    global icon_label  # メインアイコンウィジェット本体
+    global forecast_icon_labels  # 予報アイコンウィジェットのリスト
 
     # リストを初期化 (前回検索時の画像をクリア)
     forecast_img_tk_list = []
+
+    # メインアイコンもリセットし、参照を一旦クリア
+    icon_label.config(image='')
 
     # 入力欄から都市名を取得
     city = city_entry.get()
@@ -36,8 +37,8 @@ def get_weather():
     # --- 予報ラベルとアイコンをリセット ---
     for label in forecast_labels:
         label.config(text="---")
-    for icon_label in forecast_icon_labels:
-        icon_label.config(image='')  # アイコンをクリア
+    for forecast_icon_widget in forecast_icon_labels:
+        forecast_icon_widget.config(image='')
 
     # APIリクエストURL (現在の天気を取得)
     url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric&lang=ja"
@@ -53,7 +54,7 @@ def get_weather():
         weather_description = data["weather"][0]["description"]
         temp = data["main"]["temp"]
         feels_like = data["main"]["feels_like"]
-        current_icon_id = data["weather"][0]["icon"]  # 今日のアイコンID
+        current_icon_id = data["weather"][0]["icon"]
 
         # --- ラベルに情報を表示 (メインエリア) ---
         city_label.config(text=f"都市名: {city_name}")
@@ -66,8 +67,14 @@ def get_weather():
         icon_response = requests.get(icon_url)
         img_data = Image.open(BytesIO(icon_response.content))
         resized_image = img_data.resize((120, 120))
-        img_tk = ImageTk.PhotoImage(resized_image)
-        icon_label.config(image=img_tk)
+
+        # ⬇️ メインアイコン用の画像オブジェクトを作成
+        main_icon_image = ImageTk.PhotoImage(resized_image)
+
+        # ★★★ メインアイコンの参照を固定（リストとウィジェット自身に保持）★★★
+        forecast_img_tk_list.append(main_icon_image)  # リストで永続参照を確保
+        icon_label.config(image=main_icon_image)
+        icon_label.image = main_icon_image  # ウィジェット自身にも参照を持たせる
 
         # --- 5日間予報の処理 ---
 
@@ -95,24 +102,9 @@ def get_weather():
         # 抽出したデータをGUIラベルとアイコンに反映
         # -----------------------------------------------
 
-        # 1. リストの0番目（今日）を設定
-        # メイン画面で取得した「現在の天気」情報を使用
-        today_date_str = datetime.now().strftime("%m/%d (今日)")
-
-        forecast_labels[0].config(text=f"{today_date_str}: {weather_description} / {temp:.1f} °C (現在)")
-
-        # --- 現在の天気アイコンを予報リストの0番目に設定 ---
-        icon_url_current = f"http://openweathermap.org/img/wn/{current_icon_id}.png"
-        icon_response_current = requests.get(icon_url_current)
-        img_data_current = Image.open(BytesIO(icon_response_current.content)).resize((40, 40))  # 40x40にリサイズ
-        img_tk_current = ImageTk.PhotoImage(img_data_current)
-
-        forecast_img_tk_list.append(img_tk_current)  # 参照を保持
-        forecast_icon_labels[0].config(image=img_tk_current)
-
-        # 2. リストの1番目以降（明日以降）を設定
-        for i in range(4):
-            label_index = i + 1  # ラベルのインデックスは 1, 2, 3, 4
+        # ★★★ 修正: リストの0番目から「明日」以降のデータを5日分反映 ★★★
+        for i in range(5):
+            label_index = i  # ラベルのインデックスは 0, 1, 2, 3, 4
 
             if i < len(daily_forecasts):
                 day_data = daily_forecasts[i]
@@ -127,7 +119,7 @@ def get_weather():
                 # ラベルに設定
                 forecast_labels[label_index].config(text=f"{date_str}: {desc} / {temp:.1f} °C")
 
-                # --- 予報アイコンをリストの1番目以降に設定 ---
+                # --- 予報アイコンをリストに設定 ---
                 icon_url_forecast = f"http://openweathermap.org/img/wn/{forecast_icon_id}.png"
                 icon_response_forecast = requests.get(icon_url_forecast)
                 img_data_forecast = Image.open(BytesIO(icon_response_forecast.content)).resize((40, 40))
@@ -157,7 +149,7 @@ MAIN_COLOR = '#E0FFFF'
 # メインウィンドウの作成
 root = tk.Tk()
 root.title("天気予報アプリ")
-root.geometry("400x570")
+root.geometry("500x670")
 root.config(bg=MAIN_COLOR)
 
 # 都市名入力フレーム
@@ -190,7 +182,7 @@ temp_label.pack(pady=5)
 feels_like_label = tk.Label(result_frame, text="体感気温: --- °C", font=("Arial", 14), bg=MAIN_COLOR)
 feels_like_label.pack(pady=5)
 
-# 天気アイコン表示用ラベル
+# 天気アイコン表示用ラベル (メインアイコン)
 icon_label = tk.Label(result_frame, bg=MAIN_COLOR)
 icon_label.pack(pady=10)
 
@@ -199,7 +191,6 @@ forecast_frame = tk.Frame(root, bg=MAIN_COLOR)
 forecast_frame.pack(pady=10)
 
 forecast_title_label = tk.Label(forecast_frame, text="5日間の予報", font=("Arial", 14, "bold"), bg=MAIN_COLOR)
-# grid()を使うときは、columnspan=2 で2列にまたがるように指定
 forecast_title_label.grid(row=0, column=0, columnspan=2, pady=5)
 
 # 5日分のラベルを保持するリスト
@@ -207,15 +198,16 @@ forecast_labels = []
 forecast_icon_labels = []  # アイコン画像用
 for i in range(5):
     # 1. アイコンを表示するラベルを作成
-    icon_label = tk.Label(forecast_frame, bg=MAIN_COLOR)
+    # ⬇️ 【重要】メインのicon_labelと変数名が衝突しないように修正
+    forecast_icon_widget = tk.Label(forecast_frame, bg=MAIN_COLOR)
     # 1列目 (左側) に配置
-    icon_label.grid(row=i + 1, column=0, padx=5, pady=2)
-    forecast_icon_labels.append(icon_label)
+    forecast_icon_widget.grid(row=i + 1, column=0, padx=5, pady=2)
+    forecast_icon_labels.append(forecast_icon_widget)
 
     # 2. テキストを表示するラベルを作成
     text_label = tk.Label(forecast_frame, text="---", font=("Arial", 12), bg=MAIN_COLOR)
     # 2列目 (右側) に配置
-    text_label.grid(row=i + 1, column=1, sticky="w", pady=2)  # sticky="w" で左寄せ
+    text_label.grid(row=i + 1, column=1, sticky="w", pady=2)
     forecast_labels.append(text_label)
 
 # メインループの開始
