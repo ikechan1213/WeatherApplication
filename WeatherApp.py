@@ -5,6 +5,14 @@ from PIL import Image, ImageTk
 from io import BytesIO
 from datetime import datetime
 
+# --- グローバル変数 (アイコン画像を保持するため、関数外で定義) ---
+
+# メインアイコン用 (既存)
+img_tk = None
+
+# 予報アイコン用 (参照を保持しないと画像が消えるため)
+forecast_img_tk_list = []
+
 
 # --- 関数エリア ---
 
@@ -12,22 +20,56 @@ def get_weather():
     # ★★★★★ 個別のAPIキー ★★★★★
     API_KEY = "5466d0fcf87088ea5156d2d890018262"
 
+    # グローバル変数へのアクセス宣言
+    global img_tk # 現在のアイコン
+    global forecast_img_tk_list #　5日間予報のアイコン
+
+    # リストを初期化 (前回検索時の画像をクリア)
+    forecast_img_tk_list = []
+
     # 入力欄から都市名を取得
     city = city_entry.get()
     if not city:
         messagebox.showwarning("警告", "都市名を入力してください")
         return
 
-        # --- (ここから追加) 予報ラベルをリセット ---
+    # --- 予報ラベルとアイコンをリセット ---
     for label in forecast_labels:
-            label.config(text="---")
+        label.config(text="---")
+    for icon_label in forecast_icon_labels:
+        icon_label.config(image='')  # アイコンをクリア
 
     # APIリクエストURL (現在の天気を取得)
     url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric&lang=ja"
 
     try:
+        # APIにリクエストを送信 (現在の天気)
+        response = requests.get(url)
+        response.raise_for_status()
+        data = response.json()
 
-        # --- (ここから5日間予報の処理) ---
+        # --- 必要な情報を取り出す (現在の天気) ---
+        city_name = data["name"]
+        weather_description = data["weather"][0]["description"]
+        temp = data["main"]["temp"]
+        feels_like = data["main"]["feels_like"]
+        current_icon_id = data["weather"][0]["icon"]  # 今日のアイコンID
+
+        # --- ラベルに情報を表示 (メインエリア) ---
+        city_label.config(text=f"都市名: {city_name}")
+        weather_label.config(text=f"天気: {weather_description}")
+        temp_label.config(text=f"気温: {temp:.1f} °C")
+        feels_like_label.config(text=f"体感気温: {feels_like:.1f} °C")
+
+        # --- メインエリアの天気アイコンを表示 ---
+        icon_url = f"http://openweathermap.org/img/wn/{current_icon_id}@2x.png"
+        icon_response = requests.get(icon_url)
+        img_data = Image.open(BytesIO(icon_response.content))
+        resized_image = img_data.resize((120, 120))
+        img_tk = ImageTk.PhotoImage(resized_image)
+        icon_label.config(image=img_tk)
+
+        # --- 5日間予報の処理 ---
 
         # 5日間予報のAPIリクエストURL
         forecast_url = f"http://api.openweathermap.org/data/2.5/forecast?q={city}&appid={API_KEY}&units=metric&lang=ja"
@@ -36,79 +78,67 @@ def get_weather():
         forecast_response.raise_for_status()
         forecast_data = forecast_response.json()
 
-        # 3時間ごとのデータ(40件)から、お昼(12:00)のデータ(UTCとJSTでは9時間の時差があるので12-9で日本時間の昼の12時を参照している)だけを抽出
+        # 今日の日付を取得
+        today = datetime.now().date()
         daily_forecasts = []
+
+        # 予報データから、明日以降の「日本時間12時(UTC 03:00)」のデータだけを抽出
         for item in forecast_data["list"]:
-            if "03:00:00" in item["dt_txt"]:
+            dt_txt = item["dt_txt"]
+            dt_obj = datetime.strptime(dt_txt, "%Y-%m-%d %H:%M:%S")
+
+            # 今日より未来の日付、かつ UTC 03:00:00 (JST 12:00:00) のデータのみを抽出
+            if "03:00:00" in dt_txt and dt_obj.date() > today:
                 daily_forecasts.append(item)
 
-        # 抽出したデータを5日分、GUIラベルに反映
-        for i in range(len(daily_forecasts[:5])):  # 5日分に制限
-            day_data = daily_forecasts[i]
+        # -----------------------------------------------
+        # 抽出したデータをGUIラベルとアイコンに反映
+        # -----------------------------------------------
 
-            # 日付のフォーマットを "YYYY-MM-DD HH:MM:SS" から "MM/DD (曜)" に変更
-            dt_obj = datetime.strptime(day_data["dt_txt"], "%Y-%m-%d %H:%M:%S")
-            # %a は 曜日 (例: 'Sat')。ロケール(実行環境)によっては日本語になります。
-            date_str = dt_obj.strftime("%m/%d (%a)")
+        # 1. リストの0番目（今日）を設定
+        # メイン画面で取得した「現在の天気」情報を使用
+        today_date_str = datetime.now().strftime("%m/%d (今日)")
 
-            # 天気
-            desc = day_data["weather"][0]["description"]
+        forecast_labels[0].config(text=f"{today_date_str}: {weather_description} / {temp:.1f} °C (現在)")
 
-            # 気温
-            temp = day_data["main"]["temp"]
+        # --- 現在の天気アイコンを予報リストの0番目に設定 ---
+        icon_url_current = f"http://openweathermap.org/img/wn/{current_icon_id}.png"
+        icon_response_current = requests.get(icon_url_current)
+        img_data_current = Image.open(BytesIO(icon_response_current.content)).resize((40, 40))  # 40x40にリサイズ
+        img_tk_current = ImageTk.PhotoImage(img_data_current)
 
-            # ラベルに設定
-            forecast_labels[i].config(text=f"{date_str}: {desc} / {temp:.1f} °C")
-        # ここまでが5日間予報処理
+        forecast_img_tk_list.append(img_tk_current)  # 参照を保持
+        forecast_icon_labels[0].config(image=img_tk_current)
 
-        # APIにリクエストを送信
-        response = requests.get(url)
-        response.raise_for_status()  # エラーがあれば例外を発生
+        # 2. リストの1番目以降（明日以降）を設定
+        for i in range(4):
+            label_index = i + 1  # ラベルのインデックスは 1, 2, 3, 4
 
-        # 返ってきたJSONデータをPythonの辞書に変換
-        data = response.json()
+            if i < len(daily_forecasts):
+                day_data = daily_forecasts[i]
 
-        # --- 必要な情報を取り出す ---
+                # 日付、天気、気温の取得
+                dt_obj = datetime.strptime(day_data["dt_txt"], "%Y-%m-%d %H:%M:%S")
+                date_str = dt_obj.strftime("%m/%d (%a)")
+                desc = day_data["weather"][0]["description"]
+                temp = day_data["main"]["temp"]
+                forecast_icon_id = day_data["weather"][0]["icon"]
 
-        # 都市名
-        city_name = data["name"]
+                # ラベルに設定
+                forecast_labels[label_index].config(text=f"{date_str}: {desc} / {temp:.1f} °C")
 
-        # 天気の詳細 (例: "晴れ", "曇り")
-        weather_description = data["weather"][0]["description"]
+                # --- 予報アイコンをリストの1番目以降に設定 ---
+                icon_url_forecast = f"http://openweathermap.org/img/wn/{forecast_icon_id}.png"
+                icon_response_forecast = requests.get(icon_url_forecast)
+                img_data_forecast = Image.open(BytesIO(icon_response_forecast.content)).resize((40, 40))
+                img_tk_forecast = ImageTk.PhotoImage(img_data_forecast)
 
-        # 気温 (摂氏)
-        temp = data["main"]["temp"]
-
-        # 体感気温
-        feels_like = data["main"]["feels_like"]
-
-        # 天気アイコンID
-        icon_id = data["weather"][0]["icon"]
-
-        # --- ラベルに情報を表示 ---
-        city_label.config(text=f"都市名: {city_name}")
-        weather_label.config(text=f"天気: {weather_description}")
-        temp_label.config(text=f"気温: {temp:.1f} °C")
-        feels_like_label.config(text=f"体感気温: {feels_like:.1f} °C")
-
-        # # --- 天気アイコンを表示 ---
-
-        icon_url = f"http://openweathermap.org/img/wn/{icon_id}@2x.png"
-        icon_response = requests.get(icon_url)
-
-        # PILを使って画像を開く
-        img_data = Image.open(BytesIO(icon_response.content))
-
-        # ★★★ ここにリサイズ処理を追加 ★★★
-        # 例として、画像を幅 120px, 高さ 120px に拡大します
-        resized_image = img_data.resize((120, 120))
-
-        # Tkinterで使える画像形式に変換 (global img_tk を忘れずに)
-        global img_tk
-        img_tk = ImageTk.PhotoImage(resized_image)
-
-        # icon_label に画像をセット
-        icon_label.config(image=img_tk)
+                forecast_img_tk_list.append(img_tk_forecast)  # 参照を保持
+                forecast_icon_labels[label_index].config(image=img_tk_forecast)
+            else:
+                # データが足りない欄は "---" に戻し、アイコンもクリア
+                forecast_labels[label_index].config(text="---")
+                forecast_icon_labels[label_index].config(image='')
 
     except requests.exceptions.HTTPError as err:
         if response.status_code == 404:
@@ -169,14 +199,24 @@ forecast_frame = tk.Frame(root, bg=MAIN_COLOR)
 forecast_frame.pack(pady=10)
 
 forecast_title_label = tk.Label(forecast_frame, text="5日間の予報", font=("Arial", 14, "bold"), bg=MAIN_COLOR)
-forecast_title_label.pack(pady=5)
+# grid()を使うときは、columnspan=2 で2列にまたがるように指定
+forecast_title_label.grid(row=0, column=0, columnspan=2, pady=5)
 
-# 5日分のラベルを保持するリスト(リストを作ることでこの後のgetweatherで1つめのラベルは1日目という用に分かりやすくしている)
+# 5日分のラベルを保持するリスト
 forecast_labels = []
-for _ in range(5):
-    label = tk.Label(forecast_frame, text="---", font=("Arial", 12), bg=MAIN_COLOR)
-    label.pack()
-    forecast_labels.append(label)
+forecast_icon_labels = []  # アイコン画像用
+for i in range(5):
+    # 1. アイコンを表示するラベルを作成
+    icon_label = tk.Label(forecast_frame, bg=MAIN_COLOR)
+    # 1列目 (左側) に配置
+    icon_label.grid(row=i + 1, column=0, padx=5, pady=2)
+    forecast_icon_labels.append(icon_label)
+
+    # 2. テキストを表示するラベルを作成
+    text_label = tk.Label(forecast_frame, text="---", font=("Arial", 12), bg=MAIN_COLOR)
+    # 2列目 (右側) に配置
+    text_label.grid(row=i + 1, column=1, sticky="w", pady=2)  # sticky="w" で左寄せ
+    forecast_labels.append(text_label)
 
 # メインループの開始
 root.mainloop()
